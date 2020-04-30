@@ -20,6 +20,20 @@ exports.updateIndex = functions.firestore
     )
 })
 
+exports.addFollower = functions.https.onCall((data, context) => {
+    const db = admin.firestore()
+    return db.collection('users_development').doc(data.followee_id).update(
+        {'followers': admin.firestore.FieldValue.arrayUnion(data.follower_id)}
+    )
+});
+
+exports.removeFollower = functions.https.onCall((data, context) => {
+    const db = admin.firestore()
+    return db.collection('users_development').doc(data.followee_id).update(
+        {'followers': admin.firestore.FieldValue.arrayRemove(data.follower_id)}
+    )
+});
+
 function createIndex(name){
     const arr = name.toLowerCase().split('');
     const searchableIndex = {}
