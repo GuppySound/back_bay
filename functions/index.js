@@ -19,7 +19,7 @@ async function publishMessage(data) {
 
 
 exports.updateIndexDevelopment = functions.firestore
-.document('users_development/{userId}')
+.document('users/{userId}')
 .onCreate((snap, context) => {
     const userId = context.params.userId
     const user = snap.data()
@@ -27,49 +27,21 @@ exports.updateIndexDevelopment = functions.firestore
     const searchableIndex = createIndex(user.spotify_display_name)
 
     const db = admin.firestore()
-    return db.collection('users_development').doc(userId).update(
+    return db.collection('users').doc(userId).update(
         {'searchableIndex': searchableIndex}
     )
 })
 
-exports.addFollowerDevelopment = functions.https.onCall((data, context) => {
-    const db = admin.firestore()
-    return db.collection('users_development').doc(data.followee_id).update(
-        {'followers': admin.firestore.FieldValue.arrayUnion(data.follower_id)}
-    )
-});
-
-exports.removeFollowerDevelopment = functions.https.onCall((data, context) => {
-    const db = admin.firestore()
-    return db.collection('users_development').doc(data.followee_id).update(
-        {'followers': admin.firestore.FieldValue.arrayRemove(data.follower_id)}
-    )
-});
-
-exports.updateIndex = functions.firestore
-    .document('users_production/{userId}')
-    .onCreate((snap, context) => {
-        const userId = context.params.userId
-        const user = snap.data()
-
-        const searchableIndex = createIndex(user.spotify_display_name)
-
-        const db = admin.firestore()
-        return db.collection('users_production').doc(userId).update(
-            {'searchableIndex': searchableIndex}
-        )
-    })
-
 exports.addFollower = functions.https.onCall((data, context) => {
     const db = admin.firestore()
-    return db.collection('users_production').doc(data.followee_id).update(
+    return db.collection('users').doc(data.followee_id).update(
         {'followers': admin.firestore.FieldValue.arrayUnion(data.follower_id)}
     )
 });
 
 exports.removeFollower = functions.https.onCall((data, context) => {
     const db = admin.firestore()
-    return db.collection('users_production').doc(data.followee_id).update(
+    return db.collection('users').doc(data.followee_id).update(
         {'followers': admin.firestore.FieldValue.arrayRemove(data.follower_id)}
     )
 });
@@ -86,7 +58,7 @@ exports.scheduledFunction = functions.pubsub.schedule('every 1 minutes').onRun((
 });
 
 function checkListeners(db){
-    db.collection('users_development').where('n_listeners', '>', 0).get()
+    db.collection('users').where('n_listeners', '>', 0).get()
         .then(snapshot => {
             if (snapshot.empty) {
                 console.log('No users broadcasting.');
