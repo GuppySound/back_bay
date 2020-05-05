@@ -42,7 +42,50 @@ exports.addFollower = functions.https.onCall((data, context) => {
 exports.removeFollower = functions.https.onCall((data, context) => {
     const db = admin.firestore()
     return db.collection('users').doc(data.followee_id).update(
-        {'followers': admin.firestore.FieldValue.arrayRemove(data.follower_id)}
+        {
+            'followers': admin.firestore.FieldValue.arrayRemove(data.follower_id),
+            'listeners': admin.firestore.FieldValue.arrayRemove(data.follower_id)
+        }
+    )
+});
+
+exports.addListener = functions.https.onCall((data, context) => {
+    const db = admin.firestore()
+    let usersRef = db.collection('users').where('listeners', 'array-contains', data.listener_id)
+    let transaction = db.runTransaction(t => {
+        return t.get(usersRef)
+            .then(snapshot => {
+                snapshot.forEach(doc => {
+                    let newListenerCount = (doc.data().n_listeners||1) - 1;
+                    t.update(doc, {
+                        'listeners': admin.firestore.FieldValue.arrayRemove(data.follower_id),
+                        'n_listeners': newListenerCount
+                    })
+                })
+                return
+            });
+    }).then(result => {
+        console.log('Transaction success!');
+        return
+    }).catch(err => {
+        console.log('Transaction failure:', err);
+        return
+    });
+    return db.collection('users').doc(data.listenee_id).update(
+        {
+            'listeners': admin.firestore.FieldValue.arrayUnion(data.listener_id),
+            'n_listeners': admin.firestore.FieldValue.increment(1)
+        }
+    )
+});
+
+exports.removeListener = functions.https.onCall((data, context) => {
+    const db = admin.firestore()
+    return db.collection('users').doc(data.listenee_id).update(
+        {
+            'listeners': admin.firestore.FieldValue.arrayRemove(data.listener_id),
+            'n_listeners': admin.firestore.FieldValue.increment(-1)
+        }
     )
 });
 
@@ -61,13 +104,13 @@ function checkListeners(db){
     db.collection('users').where('n_listeners', '>', 0).get()
         .then(snapshot => {
             if (snapshot.empty) {
-                console.log('No users broadcasting.');
                 return;
             }
-
+            let ids = []
             snapshot.forEach(doc => {
-                publishMessage(doc.id).catch(console.error);
+                ids.push(doc.id)
             });
+            publishMessage(ids).catch(console.error)
             return;
         })
         .catch(err => {
