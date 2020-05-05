@@ -51,32 +51,30 @@ exports.removeFollower = functions.https.onCall((data, context) => {
 
 exports.addListener = functions.https.onCall((data, context) => {
     const db = admin.firestore()
-    let usersRef = db.collection('users').where('listeners', 'array-contains', data.listener_id)
-    let transaction = db.runTransaction(t => {
-        return t.get(usersRef)
-            .then(snapshot => {
-                snapshot.forEach(doc => {
-                    let newListenerCount = (doc.data().n_listeners||1) - 1;
-                    t.update(doc, {
-                        'listeners': admin.firestore.FieldValue.arrayRemove(data.follower_id),
-                        'n_listeners': newListenerCount
-                    })
+    let batch = db.batch();
+
+    db.collection('users').where('listeners', 'array-contains', data.listener_id)
+        .get()
+        .then(snapshot => {
+            snapshot.forEach(doc => {
+                let ref = db.collection('users').doc(doc.id)
+                batch.update(ref, {
+                    'listeners': admin.firestore.FieldValue.arrayRemove(data.listener_id),
+                    'n_listeners': admin.firestore.FieldValue.increment(-1)
                 })
-                return
+            })
+            return batch.commit().then(function () {
+                return db.collection('users').doc(data.listenee_id).update(
+                    {
+                        'listeners': admin.firestore.FieldValue.arrayUnion(data.listener_id),
+                        'n_listeners': admin.firestore.FieldValue.increment(1)
+                    }
+                )
             });
-    }).then(result => {
-        console.log('Transaction success!');
-        return
-    }).catch(err => {
-        console.log('Transaction failure:', err);
-        return
-    });
-    return db.collection('users').doc(data.listenee_id).update(
-        {
-            'listeners': admin.firestore.FieldValue.arrayUnion(data.listener_id),
-            'n_listeners': admin.firestore.FieldValue.increment(1)
-        }
-    )
+        })
+        .catch(err => {
+            return console.log('Error getting documents', err);
+        });
 });
 
 exports.removeListener = functions.https.onCall((data, context) => {
