@@ -34,19 +34,30 @@ exports.updateIndexDevelopment = functions.firestore
 
 exports.addFollower = functions.https.onCall((data, context) => {
     const db = admin.firestore()
-    return db.collection('users').doc(data.followee_id).update(
+    const batch = db.batch()
+    followeeRef = db.collection('users').doc(data.followee_id)
+    followerRef = db.collection('users').doc(data.follower_id)
+    batch.update( followeeRef,
         {'followers': admin.firestore.FieldValue.arrayUnion(data.follower_id)}
     )
+    batch.update( followerRef,
+        {'following': admin.firestore.FieldValue.arrayUnion(data.followee_id)}
+    )
+    return batch.commit()
 });
 
 exports.removeFollower = functions.https.onCall((data, context) => {
     const db = admin.firestore()
-    return db.collection('users').doc(data.followee_id).update(
-        {
-            'followers': admin.firestore.FieldValue.arrayRemove(data.follower_id),
-            'listeners': admin.firestore.FieldValue.arrayRemove(data.follower_id)
-        }
+    const batch = db.batch()
+    followeeRef = db.collection('users').doc(data.followee_id)
+    followerRef = db.collection('users').doc(data.follower_id)
+    batch.update( followeeRef,
+        {'followers': admin.firestore.FieldValue.arrayRemove(data.follower_id)}
     )
+    batch.update( followerRef,
+        {'following': admin.firestore.FieldValue.arrayRemove(data.followee_id)}
+    )
+    return batch.commit()
 });
 
 exports.addListener = functions.https.onCall((data, context) => {
