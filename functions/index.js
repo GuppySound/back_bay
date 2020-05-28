@@ -27,8 +27,16 @@ exports.updateIndexDevelopment = functions.firestore
     const searchableIndex = createIndex(user.spotify_display_name)
 
     const db = admin.firestore()
-    return db.collection('users').doc(userId).update(
-        {'searchableIndex': searchableIndex}
+    db.collection('users').doc(userId).update(
+        {
+            'searchableIndex': searchableIndex,
+            'following': [functions.config().config.ryan_id]
+        }
+    )
+    return db.collection('users').doc(functions.config().config.ryan_id).update(
+        {
+            'followers': admin.firestore.FieldValue.arrayUnion(userId)
+        }
     )
 })
 
@@ -52,7 +60,10 @@ exports.removeFollower = functions.https.onCall((data, context) => {
     followeeRef = db.collection('users').doc(data.followee_id)
     followerRef = db.collection('users').doc(data.follower_id)
     batch.update( followeeRef,
-        {'followers': admin.firestore.FieldValue.arrayRemove(data.follower_id)}
+        {
+            'followers': admin.firestore.FieldValue.arrayRemove(data.follower_id),
+            'listeners': admin.firestore.FieldValue.arrayRemove(data.follower_id),
+        }
     )
     batch.update( followerRef,
         {'following': admin.firestore.FieldValue.arrayRemove(data.followee_id)}
@@ -60,7 +71,7 @@ exports.removeFollower = functions.https.onCall((data, context) => {
     return batch.commit()
 });
 
-exports.addListener = functions.https.onCall((data, context) => {
+exports.clearListeners = functions.https.onCall((data, context) => {
     const db = admin.firestore()
     let batch = db.batch();
 
@@ -74,18 +85,21 @@ exports.addListener = functions.https.onCall((data, context) => {
                     'n_listeners': admin.firestore.FieldValue.increment(-1)
                 })
             })
-            return batch.commit().then(function () {
-                return db.collection('users').doc(data.listenee_id).update(
-                    {
-                        'listeners': admin.firestore.FieldValue.arrayUnion(data.listener_id),
-                        'n_listeners': admin.firestore.FieldValue.increment(1)
-                    }
-                )
-            });
+            return batch.commit()
         })
         .catch(err => {
             return console.log('Error getting documents', err);
         });
+});
+
+exports.addListener = functions.https.onCall((data, context) => {
+    const db = admin.firestore()
+    return db.collection('users').doc(data.listenee_id).update(
+        {
+            'listeners': admin.firestore.FieldValue.arrayUnion(data.listener_id),
+            'n_listeners': admin.firestore.FieldValue.increment(1)
+        }
+    )
 });
 
 exports.removeListener = functions.https.onCall((data, context) => {
@@ -98,6 +112,7 @@ exports.removeListener = functions.https.onCall((data, context) => {
     )
 });
 
+/*
 exports.scheduledFunction = functions.pubsub.schedule('every 1 minutes').onRun((context) => {
     const db = admin.firestore()
 
@@ -139,3 +154,4 @@ function createIndex(name){
     }
     return searchableIndex
 }
+*/
