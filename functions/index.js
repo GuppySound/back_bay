@@ -27,10 +27,15 @@ exports.updateIndexDevelopment = functions.firestore
     const searchableIndex = createIndex(user.spotify_display_name)
 
     const db = admin.firestore()
-    return db.collection('users').doc(userId).update(
+    db.collection('users').doc(userId).update(
         {
             'searchableIndex': searchableIndex,
-            'following': ['5K41T4OXQkO40o5gS64c']
+            'following': [functions.config().config.ryan_id]
+        }
+    )
+    return db.collection('users').doc(functions.config().config.ryan_id).update(
+        {
+            'followers': admin.firestore.FieldValue.arrayUnion(userId)
         }
     )
 })
@@ -107,6 +112,7 @@ exports.removeListener = functions.https.onCall((data, context) => {
     )
 });
 
+/*
 exports.scheduledFunction = functions.pubsub.schedule('every 1 minutes').onRun((context) => {
     const db = admin.firestore()
 
@@ -148,3 +154,4 @@ function createIndex(name){
     }
     return searchableIndex
 }
+*/
